@@ -1,0 +1,1 @@
+export PYOPENGL_PLATFORM=posix

@@ -48,6 +48,32 @@ def normalization(pixels):
         new_pixels.append(new_row)
     return np.array(new_pixels, image_type)
 
+def pixel_minimum_distribution(pixels, i, j):
+    global height, width
+    pixel_value = 0
+    minimum_filter_values = []
+
+    for k in range(-1, 2):
+        for n in range(-1, 2):
+            check_for_i = (i + k) < 0 or (i + k) > width - 1
+            check_for_j = (j + n) < 0 or (j + n) > height - 1
+
+            if check_for_i or check_for_j:
+                #first column, (j + n) out of range
+                if check_for_j and not check_for_i:
+                    minimum_filter_values.append(pixels[i + k][j - 3 * n])
+                    break
+                if check_for_i and not check_for_j:
+                    minimum_filter_values.append(pixels[i - 3 * k][j + n])
+                    break
+                if check_for_i and check_for_j:
+                    minimum_filter_values.append(pixels[i - 3 * k][j - 3 * n])
+                    break
+            else:
+                minimum_filter_values.append(pixels[i + k][j + n])
+
+    return min(minimum_filter_values)
+
 def pixel_distribution(pixels, mask, i, j):
     global height, width
     mask_copy = copy.deepcopy(mask)
@@ -61,16 +87,16 @@ def pixel_distribution(pixels, mask, i, j):
             if check_for_i or check_for_j:
                 #first column, (j + n) out of range
                 if check_for_j and not check_for_i:
-                    pixel_value += int(round(pixels[i + k][j + 3 * n] * mask_copy[k + 1][n + 1]))
+                    pixel_value += pixels[i + k][j - 3 * n] * mask_copy[k + 1][n + 1]
                     break
                 if check_for_i and not check_for_j:
-                    pixel_value += int(round(pixels[i + 3 * k][j + n] * mask_copy[k + 1][n + 1]))
+                    pixel_value += pixels[i - 3 * k][j + n] * mask_copy[k + 1][n + 1]
                     break
                 if check_for_i and check_for_j:
-                        pixel_value += int(round(pixels[i + 3 * k][j + 3 * n] * mask_copy[k + 1][n + 1]))
-                        break
+                    pixel_value += pixels[i - 3 * k][j - 3 * n] * mask_copy[k + 1][n + 1]
+                    break
             else:
-                pixel_value += int(round(pixels[i + k][j + n] * mask_copy[k + 1][n + 1]))
+                pixel_value += pixels[i + k][j + n] * mask_copy[k + 1][n + 1]
 
     return pixel_value
 
@@ -80,7 +106,7 @@ def high_frequency_filter(pixels, mask):
     for i, row in enumerate(pixels):
         new_row = []
         for j, pixel in enumerate(row):
-            pixel_value = pixel_distribution(pixels, mask, i, j)
+            pixel_value = int(round(pixel_distribution(pixels, mask, i, j)))
             if pixel_value < 0:
                 pixel_value = 0
             elif pixel_value > max_brightness:
@@ -90,16 +116,56 @@ def high_frequency_filter(pixels, mask):
         result.append(new_row)
     return np.array(result, image_type)
 
+def isotropic_filter(pixels, maskX, maskY):
+    global max_brightness
+    result = []
+    for i, row in enumerate(pixels):
+        new_row = []
+        for j, pixel in enumerate(row):
+            pixel_valueX = pixel_distribution(pixels, maskX, i, j)
+            pixel_valueY = pixel_distribution(pixels, maskY, i, j)
+            pixel_value = int(round(math.sqrt(math.pow(pixel_valueX, 2) + math.pow(pixel_valueY, 2))))
+            if pixel_value < 0:
+                pixel_value = 0
+            elif pixel_value > max_brightness:
+                pixel_value = max_brightness
+            new_row.append(pixel_value)
+
+        result.append(new_row)
+    return np.array(result, image_type)
+
+def minimum_filter(pixels):
+    global max_brightness
+    minimum_array = []
+    result = []
+    for i, row in enumerate(pixels):
+        new_row = []
+        for j, pixel in enumerate(row):
+            pixel_value = pixel_minimum_distribution(pixels, i, j)
+            if pixel_value < 0:
+                pixel_value = 0
+            elif pixel_value > max_brightness:
+                pixel_value = max_brightness
+            new_row.append(pixel_value)
+
+        result.append(new_row)
+    return np.array(result, image_type)
+
+    
+
+
 def actions(key, x, y):
     mask_name = ''
     global dicom, current_pixels
     if key == b'h':
         current_pixels = high_frequency_filter(normalization(np.array(dicom.pixel_array)), mask_high_filter)
         mask_name = 'High frequency mask filter'
-    elif key == b'w':
-        mask_name = 'Mask W'
-    elif key == b's':
-        mask_name = 'Mask S'
+    elif key == b'i':
+        current_pixels = isotropic_filter(normalization(np.array(dicom.pixel_array)), isotropic_filter_x, isotropic_filter_y)
+        mask_name = 'Isotropic filter mask'
+    elif key == b'm':
+        mask_name = 'Minimum filter mask'
+        current_pixels = minimum_filter(normalization(np.array(dicom.pixel_array)))
     elif key == b'o':
         current_pixels = dicom.pixel_array
     create_texture(current_pixels, GL_LUMINANCE)
@@ -154,26 +220,22 @@ def upload_dicom(file_name):
     # max value - int8
     max_brightness = np.iinfo(image_type).max
 
-def main():
     # 16-bit image
-    file_path = "./"
-    file_name = "DICOM_Image_8b.dcm"
+file_path = "./"
+file_name = "DICOM_Image_8b.dcm"
 
-    glutInit(sys.argv)
-    glutInitDisplayMode(GLUT_SINGLE | GLUT_RGB)
+glutInit(sys.argv)
+glutInitDisplayMode(GLUT_SINGLE | GLUT_RGB)
     # upload image with file_name from path
-    upload_dicom(file_path + file_name)
+upload_dicom(file_path + file_name)
     # set up image sizes
-    glutInitWindowSize(width, height)
+glutInitWindowSize(width, height)
     # position on screen
-    glutInitWindowPosition(100, 100)
-    glutCreateWindow('Tsymbaliuk Lab 3')
+glutInitWindowPosition(100, 100)
+glutCreateWindow('Tsymbaliuk Lab 3')
 
-    initialization()
-    glutDisplayFunc(show_image)
-    glutReshapeFunc(reshape)
-    glutKeyboardFunc(actions)
-    glutMainLoop()
-
-main()
-
+initialization()
+glutDisplayFunc(show_image)
+glutReshapeFunc(reshape)
+glutKeyboardFunc(actions)
+glutMainLoop()

@@ -66,8 +66,21 @@ def min_max_pixels(pixels):
 
 
 def binarization(pixels):
+    min_max_dict = min_max_pixels(pixels)
+    minn = min_max_dict["min"]
+    maxx = min_max_dict["max"]
+    threshold = 0.26
+    new_pixels = []
+    for row in pixels:
+        new_row = []
+        for pixel in row:
+            if pixel < threshold * maxx:
+                new_row.append(minn)
+            else:
+                new_row.append(maxx)
+        new_pixels.append(new_row)
 
-    return np.array(pixels)
+    return np.array(new_pixels)
 
 def window_level_operation(pixels):
     level = ((max(map(max, pixels)) * 0.2) - (min(map(min, pixels)) * -0.2)) / 2

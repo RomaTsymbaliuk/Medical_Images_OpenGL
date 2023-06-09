@@ -108,7 +108,7 @@ def createWindow():
 
 dicom_source = pydicom.read_file("./DICOM_Image_16b.dcm")
 image_type = np.dtype('int' + str(dicom_source['0028', '0100'].value))
-name = "Marr-Hildreth"
+name = "Active contour"
 width = dicom_source[0x28, 0x10].value
 height = dicom_source[0x28, 0x11].value
 PixelArray = dicom_source.pixel_array
